@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+	<!-- add title -->
+	
+    <!-- import required libraries here -->
+<script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+<script type="text/javascript" src="../lib/d3-dsv.min.js"></script>
+<script type="text/javascript" src="../lib/topojson.v2.min.js"></script>
+<script type="text/javascript" src="../lib/d3-tip.min.js"></script>
+<script type="text/javascript" src="../lib/d3-legend.min.js"></script>
+<script type="text/javascript" src="../lib/d3-geo-projection.v2.min.js"></script>
+	<style>
+		<!-- define CSS rules here -->
+
+
+	#dropdown {
+		margin-bottom: 20px;
+		margin-right: 35px;
+	}	
+	
+	.d3-tip {
+	line-height: 1;
+	padding: 6px;
+	background: rgba(43,43,43, 0.8);
+	color: #fff;
+	border-radius: 2px;
+	font-family: sans-serif;
+	font-size: 14px
+	}
+	</style>
+</head>
+
+
+<body>
+    <!-- heading for the visualization -->
+	<div id="title"></div>
+	<!-- Dropdown -->
+	<p> Select Games:  <select id="dropdown"></select> </p> 
+	<!-- append visualization svg to this div-->
+    <div id="choropleth"></div>
+
+    <script>
+	
+		// define margin and dimensions for svg
+var margin = {top: 50, right: 50, bottom: 50, left: 50}
+  , width = window.innerWidth - margin.left - margin.right// Use the window's width 
+  , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
+		
+		// create svg
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+	.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");		
+
+var g = svg.append("g");
+
+var title = d3.select("#title").append("text")
+        .attr("x", margin.left  )             
+        .attr("y", 0)
+        .attr("font-family", "sans-serif")
+        .style("font-size", "20px") 
+        .style("font-weight", "bold") 
+        .text("Olympic Games Results Across the World by years");
+
+		
+		// create color scale 
+	
+var colorScale = d3.scaleQuantile()
+  
+		// define tooltip
+		var tip = d3.tip()
+			.attr('class', 'd3-tip')
+			.offset([00, 0])
+		//define projection and path required for Choropleth
+var path = d3.geoPath();
+
+var projection = d3.geoNaturalEarth()
+    .scale(width / 2.3 / Math.PI)
+    .translate([width / 2, height /2.5])
+	
+var path = d3.geoPath()
+    .projection(projection);
+
+
+		// define any other global variables 
+var gameData=d3.map()
+
+  
+  svg.call(tip);
+
+var	promises=[// read files
+			d3.json("world_countries.json"),
+			d3.csv("olympic-data.csv")
+        ]
+
+	svg.append("text")
+	.attr("x", (width *3/ 4))             
+    .attr("y", height - (margin.bottom / 2)-30)
+	.attr("text-anchor", "middle")
+	.style("font-weight", "bold")
+	.style("font-size", "12px")
+	.text("Nataliya Golovach")
+	.attr("font-family", "sans-serif")
+	.style("fill", "black") ;
+
+
+    Promise.all(promises).then(
+            // call ready() with required arguments
+		
+		//console.log("promises",promises[0])
+		resolve => {
+          ready(0, resolve[0], resolve[1])
+		
+        });
+		//console.log("gameData before",gameData)
+				
+		// this function should be called once the data from files have been read
+		// world: topojson from world_countries.json
+		// gameData: data from *.csv
+		
+        function ready(error, world, gameData) {
+		
+		if (error) throw error;
+
+		var gameData2=d3.map(gameData, function(d){return +d['Total'];})
+		//console.log("gameData", gameData)
+		//console.log("gameData2", gameData2)
+		
+        // enter code to extract all unique games from gameData
+			
+		var select1 = document.getElementById("dropdown");
+
+		var gameList=d3.map(gameData, function(d){return d.Games;}).keys();
+		//console.log("gameList", gameList)
+	
+		// enter code to append the game options to the dropdown
+		for (var i = 0; i < gameList.length; i++) { 
+                var optn = gameList[i]; 
+                var el = document.createElement("option"); 
+                el.textContent = optn; 
+                el.value = optn; 
+                select1.appendChild(el);
+            } 
+		
+		
+            // event listener for the dropdown. Update choropleth and legend when selection changes. Call createMapAndLegend() with required arguments.
+		select1.addEventListener('change', handleSelectChange);
+		
+		function handleSelectChange(event) {
+
+			var selectElement = event.target;
+			var value = selectElement.value;
+			createMapAndLegend(world,gameData, value)
+		}
+		
+        // create Choropleth with default option. Call createMapAndLegend() with required arguments. 
+        
+		createMapAndLegend(world,gameData, "2016 Summer")
+		
+		
+		
+		}
+		
+		// this function should create a Choropleth and legend using the world and gameData arguments for a selectedGame
+		// also use this function to update Choropleth and legend when a different game is selected from the dropdown
+        function createMapAndLegend(world, gameData, selectedGame){ 
+		//console.log("selectedGame", selectedGame)
+		data=gameData.filter(function(d){return d.Games==selectedGame;})
+		console.log("filtered data",data)
+		//console.log ("test for country", d.Country=="Romania")
+		
+		var dataNest=d3.map()
+		data.forEach (function(d,i)	{
+			dataNest.set(d.Country, +d["Total"]);
+		});
+		
+		colorScale 
+			.domain([d3.min(data, function(d) {return +d["Total"];}), d3.max(data, function(d) {return +d["Total"];})])
+			.range(d3.schemeReds[4]);	
+		
+		console.log("dataNest", dataNest)
+		
+		svg.append("g")
+			.attr("class", "countries")
+			.selectAll("path")
+			.data(world.features)
+			.enter().append("path")
+				.attr("fill", function (d){
+                // Pull data for this country
+				
+				d['Total'] = dataNest.get(d.properties.name) || 0;
+
+                // Set the color
+				if (d['Total']==0){
+					return "#cccccc"}
+				else {
+					return colorScale(d['Total'])};
+				})
+				.attr("d", path)
+				.on('mouseover', tip.show)
+				.on('mouseout', tip.hide)
+			;
+
+			// Legend
+			
+			
+
+			
+			var g = svg.append("g")
+				.attr("class", "legendThreshold")
+				.attr("transform", "translate(20,20)")
+				.attr("font-family", "sans-serif");
+				//.attr("x", width-margin.right)
+				//.attr("y", -6)
+		/*	
+			g.append("text")
+				.attr("class", "caption")
+				.attr("x", width-margin.right)
+				.attr("y", -6)
+				.attr("font-family", "sans-serif");
+			*/
+			
+			
+			
+			
+			var minim=d3.min(data, function(d) {return +d["Total"];})
+			var maxim=d3.max(data, function(d) {return +d["Total"];})
+			var diff= maxim-minim
+			var step=Math.round((diff/4) * 100) / 100
+			
+			console.log("step", step )
+			
+			
+
+			var labels = [minim+ "-" + Math.round(((minim+step)* 100) / 100), 
+				Math.round(((minim+step)* 100) / 100)+ "-" + Math.round(((minim+step*2)* 100) / 100), 
+				Math.round(((minim+step*2)* 100) / 100)+ "-" + Math.round(((minim+step*3)* 100) / 100),
+				Math.round(((minim+step*3)* 100) / 100)+ "-" + maxim]
+			
+			
+			var legend = d3.legendColor()
+				.labels(function (d) { return labels[d.i]; })
+				.shapePadding(4)
+				.scale(colorScale);
+			
+			svg.select(".legendThreshold")
+				.call(legend);
+				
+			var databycountry=d3.map(data, function(d){return d.Country;});	
+			
+			tip
+				  .html(function(d) {
+				var dataRow = dataNest.get(d.properties.name);
+				if (dataRow) {
+					return "<b>" +"Country: " + d.properties.name +  "</b></br>" +
+					"Game: " + databycountry["\$"+d.properties.name].Games +  "</br>" +
+					"Total athletes: " + +databycountry["\$"+d.properties.name]["Total athletes"]+  "</br>" +
+					"Total medals: " +databycountry["\$"+d.properties.name]["Total"]+ " (" +databycountry["\$"+d.properties.name]["Percentage"]+ ")" +  "</br>" +
+					"- Gold medals: " +databycountry["\$"+d.properties.name]["Gold"]+  "</br>" +
+					"- Silver medals: " + +databycountry["\$"+d.properties.name]["Silver"]+  "</br>" +
+					"- Bronze medals: " + +databycountry["\$"+d.properties.name]["Bronze"]
+					
+				} else {
+					//console.log("no dataRow", d);
+					return d.properties.name + ": No data.";
+				}
+		})
+			
+			
+        }
+    </script>
+
+</body>
+
+</html>
