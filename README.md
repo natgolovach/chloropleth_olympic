@@ -1,7 +1,7 @@
 # chloropleth_olympic
 Olympic Games Results Across the World by years from Athens 1896 to Rio 2016 on Chloropleth map
 
-![Screenshot](screenshot.png)
+![Alt text](screenshot.PNG)
 
 The data was downloaded from Kaggle https://www.kaggle.com/heesoo37/120-years-of-olympic-history-athletes-and-results.
 
